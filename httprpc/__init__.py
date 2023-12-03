@@ -125,7 +125,8 @@ class Client():
                     length = int(v.strip())
 
             octets = await reader.readexactly(length)
-            assert (length == len(octets))
+            if length != len(octets):
+                raise Exception('TRUNCATED_MSG_BODY')
 
             if status.startswith(b'HTTP/1.1 200 OK'):
                 return octets
