@@ -46,6 +46,8 @@ class Server():
 
                 if length > 0:
                     params['octets'] = await reader.readexactly(length)
+                    if length != len(params['octets']):
+                        raise Exception('TRUNCATED_MSG_BODY')
             except Exception:
                 return writer.close()
 
