@@ -11,11 +11,14 @@ function generate_ca {
 
 # Generate CA certificate for the current and the next year
 YEAR=$(date +%Y)
+PREV=$((YEAR-1))
 NEXT=$((YEAR+1))
+generate_ca $PREV
 generate_ca $YEAR
 generate_ca $NEXT
-cat CA/$YEAR.pem CA/$NEXT.pem > cacert.pem
+cat CA/$PREV.pem CA/$YEAR.pem CA/$NEXT.pem > cacert.pem
 
+openssl x509 -in CA/$PREV.pem -text -noout | grep 'Subject: CN'
 openssl x509 -in CA/$YEAR.pem -text -noout | grep 'Subject: CN'
 openssl x509 -in CA/$NEXT.pem -text -noout | grep 'Subject: CN'
 

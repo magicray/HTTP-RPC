@@ -63,6 +63,7 @@ class Server():
 
             try:
                 writer.write(f'HTTP/1.1 {status}\n'.encode())
+                writer.write('content-type: text/html\n'.encode())
                 writer.write(f'content-length: {len(octets)}\n\n'.encode())
                 writer.write(octets)
                 await writer.drain()
