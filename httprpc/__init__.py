@@ -88,6 +88,10 @@ class Server():
             return await srv.serve_forever()
 
 
+def run(cacert, cert, port, handlers):
+    asyncio.run(Server().run(cacert, cert, port, handlers))
+
+
 class Client():
     def __init__(self, cacert, cert, servers):
         servers = [s.split(':') for s in servers.split(',')]
