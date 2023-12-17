@@ -1,7 +1,6 @@
 import sys
 import time
 import json
-import asyncio
 import httprpc
 
 
@@ -18,6 +17,6 @@ async def octets(ctx):
     return json.dumps(await obj(ctx), sort_keys=True, indent=4).encode()
 
 
-asyncio.run(httprpc.Server().run(int(sys.argv[1]),
+httprpc.run(int(sys.argv[1]),
             dict(obj=obj, html=html, octets=octets),
-            sys.argv[2] if len(sys.argv) > 2 else None))
+            sys.argv[2] if len(sys.argv) > 2 else None)
