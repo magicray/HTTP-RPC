@@ -1,4 +1,5 @@
 import ssl
+import json
 import uuid
 import asyncio
 import traceback
@@ -53,8 +54,17 @@ class Server():
 
             try:
                 octets = await self.methods[method](ctx, **params)
-                if type(octets) is not bytes:
-                    raise Exception(f'INVALID_RESPONSE_TYPE - {type(octets)}')
+                status = content_type = None
+
+                if type(octets) is bytes:
+                    content_type = 'application/octet-stream'
+                elif type(octets) is str:
+                    octets = octets.encode()
+                    content_type = 'text/html'
+                else:
+                    octets = json.dumps(octets, indent=4).encode()
+                    content_type = 'application/json'
+
                 status = '200 OK'
             except Exception:
                 traceback.print_exc()
@@ -63,7 +73,7 @@ class Server():
 
             try:
                 writer.write(f'HTTP/1.1 {status}\n'.encode())
-                writer.write('content-type: text/html\n'.encode())
+                writer.write(f'content-type: {content_type}\n'.encode())
                 writer.write(f'content-length: {len(octets)}\n\n'.encode())
                 writer.write(octets)
                 await writer.drain()
@@ -74,21 +84,26 @@ class Server():
             log(f'{peer} {count} {method} {status} {params} {len(octets)}')
             count += 1
 
-    async def run(self, cacert, cert, port, methods):
+    async def run(self, port, methods, cert=None, cacert=None):
         self.methods = methods
 
-        ctx = ssl.create_default_context(
-            cafile=cacert, purpose=ssl.Purpose.CLIENT_AUTH)
-        ctx.load_cert_chain(cert, cert)
-        ctx.verify_mode = ssl.CERT_OPTIONAL
-        ctx.check_hostname = True
+        ctx = None
+        if cert:
+            if not cacert:
+                cacert = cert
+
+            ctx = ssl.create_default_context(
+                cafile=cacert, purpose=ssl.Purpose.CLIENT_AUTH)
+            ctx.load_cert_chain(cert, cert)
+            ctx.verify_mode = ssl.CERT_OPTIONAL
+            ctx.check_hostname = True
 
         srv = await asyncio.start_server(self._handler, None, port, ssl=ctx)
         async with srv:
             return await srv.serve_forever()
 
 
-def run(cacert, cert, port, handlers):
+def run(port, handlers, cert=None, cacert=None):
     asyncio.run(Server().run(cacert, cert, port, handlers))
 
 
@@ -121,6 +136,7 @@ class Client():
             await writer.drain()
 
             status = await reader.readline()
+            content_type = None
 
             while True:
                 line = await reader.readline()
@@ -128,6 +144,8 @@ class Client():
                 if not line:
                     break
                 k, v = line.decode().split(':', maxsplit=1)
+                if 'content-type' == k.strip().lower():
+                    content_type = v.strip().lower()
                 if 'content-length' == k.strip().lower():
                     length = int(v.strip())
 
@@ -136,7 +154,14 @@ class Client():
                 raise Exception('TRUNCATED_MSG_BODY')
 
             if status.startswith(b'HTTP/1.1 200 OK'):
-                return octets
+                if content_type == 'application/octet-stream':
+                    return octets
+
+                if content_type == 'application/json':
+                    return json.loads(octets.decode())
+
+                if content_type == 'text/html':
+                    return octets.decode()
 
             raise Exception(octets.decode())
         except Exception:

@@ -2,7 +2,7 @@ import time
 from distutils.core import setup
 
 setup(
-  name='HTTP-RPC',
+  name='http-rpc',
   packages=['httprpc'],
   scripts=['bin/httprpc-sign-cert'],
   version=time.strftime('%Y%m%d'),

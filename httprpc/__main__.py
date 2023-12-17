@@ -5,10 +5,19 @@ import asyncio
 import httprpc
 
 
-async def ping(ctx):
+async def obj(ctx):
     ctx['time'] = time.time()
-    return json.dumps(ctx, sort_keys=True, indent=4).encode()
+    return ctx
 
-asyncio.run(httprpc.Server().run(
-    sys.argv[1], sys.argv[2], int(sys.argv[3]),
-    dict(ping=ping)))
+
+async def html(ctx):
+    return str(await obj(ctx))
+
+
+async def octets(ctx):
+    return json.dumps(await obj(ctx), sort_keys=True, indent=4).encode()
+
+
+asyncio.run(httprpc.Server().run(int(sys.argv[1]),
+            dict(obj=obj, html=html, octets=octets),
+            sys.argv[2] if len(sys.argv) > 2 else None))
