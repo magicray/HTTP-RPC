@@ -36,7 +36,7 @@ class Server():
                 params = {k.lower(): urllib.parse.unquote(v)
                           for k, v in zip(p[1::2], p[2::2])}
 
-                length = 0
+                content_type = length = None
                 while True:
                     line = await reader.readline()
                     line = line.strip()
@@ -45,11 +45,26 @@ class Server():
                     k, v = line.decode().split(':', maxsplit=1)
                     if 'content-length' == k.strip().lower():
                         length = int(v.strip())
+                    if 'content-type' == k.strip().lower():
+                        content_type = v.strip().lower()
 
                 if length > 0:
-                    params['octets'] = await reader.readexactly(length)
+                    octets = await reader.readexactly(length)
                     if length != len(params['octets']):
                         raise Exception('TRUNCATED_MSG_BODY')
+
+                    if content_type == 'application/octet-stream':
+                        params['octets'] = octets
+
+                    if content_type == 'text/plain':
+                        params['text'] = octets.decode()
+
+                    if content_type == 'application/json':
+                        params['obj'] = json.loads(octets.decode())
+
+                    if content_type == 'application/httprpc-python-pickle':
+                        params['obj'] = pickle.loads(octets)
+
             except Exception:
                 return writer.close()
 
@@ -165,11 +180,11 @@ class Client():
                 if content_type == 'application/octet-stream':
                     return octets
 
-                if content_type == 'application/json':
-                    return json.loads(octets.decode())
-
                 if content_type == 'text/html':
                     return octets.decode()
+
+                if content_type == 'application/json':
+                    return json.loads(octets.decode())
 
                 if content_type == 'application/httprpc-python-pickle':
                     return pickle.loads(octets)
