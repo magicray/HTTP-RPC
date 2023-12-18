@@ -1,6 +1,7 @@
 import ssl
 import json
 import uuid
+import pickle
 import asyncio
 import traceback
 import urllib.parse
@@ -58,14 +59,21 @@ class Server():
 
                 if type(octets) is bytes:
                     content_type = 'application/octet-stream'
+
                 elif type(octets) is str:
                     octets = octets.encode()
                     content_type = 'text/html'
-                else:
-                    octets = json.dumps(octets, indent=4).encode()
-                    content_type = 'application/json'
 
-                status = '200 OK'
+                else:
+                    try:
+                        octets = json.dumps(octets, indent=4).encode()
+                        content_type = 'application/json'
+                    except Exception:
+                        octets = pickle.dumps(octets)
+                        content_type = 'application/httprpc-python-pickle'
+
+                if content_type:
+                    status = '200 OK'
             except Exception:
                 traceback.print_exc()
                 octets = traceback.format_exc().encode()
@@ -162,6 +170,9 @@ class Client():
 
                 if content_type == 'text/html':
                     return octets.decode()
+
+                if content_type == 'application/httprpc-python-pickle':
+                    return pickle.loads(octets)
 
             raise Exception(octets.decode())
         except Exception:
