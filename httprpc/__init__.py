@@ -50,7 +50,7 @@ class Server():
 
                 if length > 0:
                     octets = await reader.readexactly(length)
-                    if length != len(params['octets']):
+                    if length != len(octets):
                         raise Exception('TRUNCATED_MSG_BODY')
 
                     if content_type == 'application/octet-stream':
