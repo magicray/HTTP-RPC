@@ -153,7 +153,21 @@ class Client():
 
             reader, writer = self.conns[server]
 
+            if type(octets) is bytes:
+                content_type = 'application/octet-stream'
+            elif type(octets) is str:
+                octets = octets.encode()
+                content_type = 'text/plain'
+            else:
+                try:
+                    octets = json.dumps(octets, indent=4).encode()
+                    content_type = 'application/json'
+                except Exception:
+                    octets = pickle.dumps(octets)
+                    content_type = 'application/httprpc-python-pickle'
+
             writer.write(f'POST {resource} HTTP/1.1\n'.encode())
+            writer.write(f'content-type: {content_type}\n'.encode())
             writer.write(f'content-length: {len(octets)}\n\n'.encode())
             writer.write(octets)
             await writer.drain()
