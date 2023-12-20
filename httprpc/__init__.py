@@ -36,7 +36,7 @@ class Server():
                 params = {k.lower(): urllib.parse.unquote(v)
                           for k, v in zip(p[1::2], p[2::2])}
 
-                content_type = length = None
+                content_type = length = 0
                 while True:
                     line = await reader.readline()
                     line = line.strip()
