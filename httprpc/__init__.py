@@ -53,17 +53,14 @@ class Server():
                     if length != len(octets):
                         raise Exception('TRUNCATED_MSG_BODY')
 
-                    if content_type == 'application/octet-stream':
-                        params['octets'] = octets
-
-                    if content_type == 'text/plain':
-                        params['text'] = octets.decode()
-
-                    if content_type == 'application/json':
-                        params['obj'] = json.loads(octets.decode())
-
                     if content_type == 'application/httprpc-python-pickle':
                         params['obj'] = pickle.loads(octets)
+                    elif content_type == 'application/json':
+                        params['obj'] = json.loads(octets.decode())
+                    elif content_type == 'text/plain':
+                        params['text'] = octets.decode()
+                    else:
+                        params['octets'] = octets
 
             except Exception:
                 return writer.close()
@@ -107,7 +104,7 @@ class Server():
             log(f'{peer} {count} {method} {status} {params} {len(octets)}')
             count += 1
 
-    async def run(self, port, methods, cert=None, cacert=None):
+    async def run(self, ip, port, methods, cert=None, cacert=None):
         self.methods = methods
 
         ctx = None
@@ -121,13 +118,13 @@ class Server():
             ctx.verify_mode = ssl.CERT_OPTIONAL
             ctx.check_hostname = True
 
-        srv = await asyncio.start_server(self._handler, None, port, ssl=ctx)
+        srv = await asyncio.start_server(self._handler, ip, port, ssl=ctx)
         async with srv:
             return await srv.serve_forever()
 
 
-def run(port, handlers, cert=None, cacert=None):
-    asyncio.run(Server().run(port, handlers, cert, cacert))
+def run(port, handlers, cert=None, cacert=None, ip=None):
+    asyncio.run(Server().run(ip, port, handlers, cert, cacert))
 
 
 class Client():
