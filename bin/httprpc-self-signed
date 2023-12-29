@@ -4,6 +4,7 @@ UUID=$(uuid -v 4)
 SUBJECT="Self Signed - $UUID"
 
 openssl req -x509 -newkey rsa:4096 -nodes -sha256 -days 1000 \
+            -addext "subjectAltName = $1"                    \
 	    -subj "/CN=$SUBJECT" -keyout $UUID.pem -out $UUID.pem
 
 openssl x509 -in $UUID.pem -text -noout
