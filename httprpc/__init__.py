@@ -1,4 +1,5 @@
 import ssl
+import gzip
 import json
 import uuid
 import pickle
@@ -36,7 +37,7 @@ class Server():
                 params = {k.lower(): urllib.parse.unquote(v)
                           for k, v in zip(p[1::2], p[2::2])}
 
-                content_type = length = 0
+                compress_gzip = content_type = length = 0
                 while True:
                     line = await reader.readline()
                     line = line.strip()
@@ -47,6 +48,9 @@ class Server():
                         length = int(v.strip())
                     if 'content-type' == k.strip().lower():
                         content_type = v.strip().lower()
+                    if 'accept-encoding' == k.strip().lower():
+                        if 'gzip' in v.strip().lower().split(', '):
+                            compress_gzip = True
 
                 if length > 0:
                     octets = await reader.readexactly(length)
@@ -94,6 +98,11 @@ class Server():
             try:
                 writer.write(f'HTTP/1.1 {status}\n'.encode())
                 writer.write(f'content-type: {content_type}\n'.encode())
+
+                if compress_gzip is True:
+                    octets = gzip.compress(octets)
+                    writer.write('content-encoding: gzip\n'.encode())
+
                 writer.write(f'content-length: {len(octets)}\n\n'.encode())
                 writer.write(octets)
                 await writer.drain()
