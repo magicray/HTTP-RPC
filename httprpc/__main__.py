@@ -17,6 +17,10 @@ async def octets(ctx):
     return json.dumps(await obj(ctx), sort_keys=True, indent=4).encode()
 
 
+async def echo(ctx, octets):
+    return octets
+
+
 httprpc.run(int(sys.argv[1]),
-            dict(obj=obj, html=html, octets=octets),
+            dict(obj=obj, html=html, octets=octets, echo=echo),
             sys.argv[2] if len(sys.argv) > 2 else None)

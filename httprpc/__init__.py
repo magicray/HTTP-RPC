@@ -37,7 +37,7 @@ class Server():
                 params = {k.lower(): urllib.parse.unquote(v)
                           for k, v in zip(p[1::2], p[2::2])}
 
-                compress_gzip = content_type = length = 0
+                in_gzip = out_gzip = content_type = length = 0
                 while True:
                     line = await reader.readline()
                     line = line.strip()
@@ -48,14 +48,20 @@ class Server():
                         length = int(v.strip())
                     if 'content-type' == k.strip().lower():
                         content_type = v.strip().lower()
+                    if 'content-encoding' == k.strip().lower():
+                        if 'gzip' in v.strip().lower().split():
+                            in_gzip = True
                     if 'accept-encoding' == k.strip().lower():
                         if 'gzip' in v.strip().lower().split(', '):
-                            compress_gzip = True
+                            out_gzip = True
 
                 if length > 0:
                     octets = await reader.readexactly(length)
                     if length != len(octets):
                         raise Exception('TRUNCATED_MSG_BODY')
+
+                    if in_gzip is True:
+                        octets = gzip.decompress(octets)
 
                     if content_type == 'application/httprpc-python-pickle':
                         params['obj'] = pickle.loads(octets)
@@ -99,7 +105,7 @@ class Server():
                 writer.write(f'HTTP/1.1 {status}\n'.encode())
                 writer.write(f'content-type: {content_type}\n'.encode())
 
-                if compress_gzip is True:
+                if out_gzip is True:
                     octets = gzip.compress(octets)
                     writer.write('content-encoding: gzip\n'.encode())
 
