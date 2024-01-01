@@ -115,8 +115,9 @@ class Server():
             except Exception:
                 return writer.close()
 
-            params.pop('octets', None)
-            log(f'{peer} {count} {method} {status} {params} {len(octets)}')
+            log(f'{peer} count({count}) status({status}) '
+                f'in_len({length}) out_len({len(octets)}) '
+                f'{method}{list(params.keys())}')
             count += 1
 
     async def run(self, ip, port, methods, cert=None, cacert=None):
