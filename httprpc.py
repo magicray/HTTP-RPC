@@ -120,7 +120,7 @@ class Server():
 
             log(f'{peer} count({count}) status({status}) '
                 f'in_len({length}) out_len({len(octets)}) '
-                f'{method}{list(params.keys())}')
+                f'{method}({", ".join(params.keys())})')
             count += 1
 
     async def run(self, ip, port, methods, cert=None, cacert=None):
