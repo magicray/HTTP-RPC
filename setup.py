@@ -3,7 +3,7 @@ from distutils.core import setup
 
 setup(
   name='http-rpc',
-  packages=['httprpc'],
+  py_modules=['httprpc'],
   scripts=['bin/httprpc-sign-cert'],
   version=time.strftime('%Y%m%d'),
   description='A minimal RPC server using HTTP',

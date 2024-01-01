@@ -1,11 +1,14 @@
+import sys
 import ssl
 import gzip
+import time
 import json
 import uuid
 import pickle
 import asyncio
 import traceback
 import urllib.parse
+import logging
 from logging import critical as log
 
 
@@ -237,3 +240,23 @@ class Client():
                 writer.close()
             except Exception:
                 pass
+
+
+async def echo(ctx, obj):
+    return dict(obj=obj, ctx=ctx, time=time.time())
+
+
+if __name__ == '__main__':
+    logging.basicConfig(format='%(asctime)s %(process)d : %(message)s')
+
+    port = int(sys.argv[1])
+    cert = sys.argv[2] if len(sys.argv) > 2 else None
+    proto = 'https' if cert else 'http'
+
+    log('''echo '{"value": [1, 2, 3, 4]}' | gzip - | '''
+        f'curl -kv --compressed {proto}://localhost:{port}/echo '
+        '--data-binary @- '
+        '-H "content-type: application/json" '
+        '-H "content-encoding: gzip"')
+
+    run(port, dict(echo=echo), cert)
