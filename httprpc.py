@@ -3,7 +3,6 @@ import ssl
 import gzip
 import time
 import json
-import uuid
 import pickle
 import asyncio
 import traceback
@@ -23,7 +22,7 @@ class Server():
                 ctx = dict(ip=peer[0])
 
                 cert = writer.get_extra_info('peercert')
-                subject = str(uuid.UUID(cert['subject'][0][0][1]))
+                subject = cert['subject'][0][0][1]
                 ip_list = [y for x, y in cert['subjectAltName']
                            if 'IP Address' == x]
 
