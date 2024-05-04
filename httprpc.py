@@ -1,13 +1,14 @@
-import sys
 import ssl
 import gzip
 import time
 import json
 import pickle
 import asyncio
-import traceback
-import urllib.parse
 import logging
+import argparse
+import traceback
+import importlib
+import urllib.parse
 from logging import critical as log
 
 
@@ -17,19 +18,8 @@ class Server():
         count = 1
 
         while True:
-            try:
-                peer = writer.get_extra_info('socket').getpeername()
-                ctx = dict(ip=peer[0])
-
-                cert = writer.get_extra_info('peercert')
-                subject = cert['subject'][0][0][1]
-                ip_list = [y for x, y in cert['subjectAltName']
-                           if 'IP Address' == x]
-
-                if peer[0] in ip_list:
-                    ctx['subject'] = subject
-            except Exception:
-                pass
+            cert = writer.get_extra_info('peercert')
+            peer = writer.get_extra_info('socket').getpeername()
 
             try:
                 line = await reader.readline()
@@ -78,7 +68,15 @@ class Server():
                 return writer.close()
 
             try:
-                octets = await self.methods[method](ctx, **params)
+                if cert and method:
+                    octets = await getattr(self.app, method)(cert, **params)
+                elif cert:
+                    octets = await mtls_echo(cert, **params)
+                elif method:
+                    octets = await getattr(self.app, method)(**params)
+                else:
+                    octets = await tls_echo(**params)
+
                 status = content_type = None
 
                 if type(octets) is bytes:
@@ -122,27 +120,25 @@ class Server():
                 f'{method}({", ".join(params.keys())})')
             count += 1
 
-    async def run(self, ip, port, methods, cert=None, cacert=None):
-        self.methods = methods
+    async def run(self, ip, port, app, cert, cacert=None):
+        self.app = app
 
-        ctx = None
-        if cert:
-            if not cacert:
-                cacert = cert
+        if not cacert:
+            cacert = cert
 
-            ctx = ssl.create_default_context(
-                cafile=cacert, purpose=ssl.Purpose.CLIENT_AUTH)
-            ctx.load_cert_chain(cert, cert)
-            ctx.verify_mode = ssl.CERT_OPTIONAL
-            ctx.check_hostname = True
+        ctx = ssl.create_default_context(
+            cafile=cacert, purpose=ssl.Purpose.CLIENT_AUTH)
+        ctx.load_cert_chain(cert, cert)
+        ctx.verify_mode = ssl.CERT_OPTIONAL
+        ctx.check_hostname = True
 
         srv = await asyncio.start_server(self._handler, ip, port, ssl=ctx)
         async with srv:
             return await srv.serve_forever()
 
 
-def run(port, handlers, cert=None, cacert=None, ip=None):
-    asyncio.run(Server().run(ip, port, handlers, cert, cacert))
+def run(port, app, cert=None, cacert=None, ip=None):
+    asyncio.run(Server().run(ip, port, app, cert, cacert))
 
 
 class Client():
@@ -241,21 +237,30 @@ class Client():
                 pass
 
 
-async def echo(ctx, obj):
-    return dict(obj=obj, ctx=ctx, time=time.time())
+async def tls_echo(obj):
+    return dict(obj=obj, time=time.time())
+
+
+async def mtls_echo(cert, obj):
+    res = await tls_echo(obj)
+    res['cert'] = cert
+    return res
 
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s %(process)d : %(message)s')
 
-    port = int(sys.argv[1])
-    cert = sys.argv[2] if len(sys.argv) > 2 else None
-    proto = 'https' if cert else 'http'
+    G = argparse.ArgumentParser()
+    G.add_argument('--app', help='application module')
+    G.add_argument('--port', type=int, help='port number for server')
+    G.add_argument('--cert', help='certificate path')
+    G.add_argument('--cacert', help='ca certificate path')
+    G = G.parse_args()
 
     log('''echo '{"value": [1, 2, 3, 4]}' | gzip - | '''
-        f'curl -kv --compressed {proto}://localhost:{port}/echo '
+        f'curl -kv --compressed https://localhost:{G.port} '
         '--data-binary @- '
         '-H "content-type: application/json" '
         '-H "content-encoding: gzip"')
 
-    run(port, dict(echo=echo), cert)
+    run(G.port, importlib.import_module(G.app), G.cert, G.cacert)
