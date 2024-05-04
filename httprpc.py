@@ -1,6 +1,5 @@
 import ssl
 import gzip
-import time
 import json
 import pickle
 import asyncio
@@ -68,14 +67,10 @@ class Server():
                 return writer.close()
 
             try:
-                if cert and method:
+                if cert:
                     octets = await getattr(self.app, method)(cert, **params)
-                elif cert:
-                    octets = await mtls_echo(cert, **params)
-                elif method:
-                    octets = await getattr(self.app, method)(**params)
                 else:
-                    octets = await tls_echo(**params)
+                    octets = await getattr(self.app, method)(**params)
 
                 status = content_type = None
 
@@ -235,16 +230,6 @@ class Client():
                 writer.close()
             except Exception:
                 pass
-
-
-async def tls_echo(obj):
-    return dict(obj=obj, time=time.time())
-
-
-async def mtls_echo(cert, obj):
-    res = await tls_echo(obj)
-    res['cert'] = cert
-    return res
 
 
 if __name__ == '__main__':
