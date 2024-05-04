@@ -132,10 +132,6 @@ class Server():
             return await srv.serve_forever()
 
 
-def run(port, app, cert=None, cacert=None, ip=None):
-    asyncio.run(Server().run(ip, port, app, cert, cacert))
-
-
 class Client():
     def __init__(self, cacert, cert, servers):
         servers = [s.split(':') for s in servers.split(',')]
@@ -237,6 +233,7 @@ if __name__ == '__main__':
 
     G = argparse.ArgumentParser()
     G.add_argument('--app', help='application module')
+    G.add_argument('--ip', help='ip address for server')
     G.add_argument('--port', type=int, help='port number for server')
     G.add_argument('--cert', help='certificate path')
     G.add_argument('--cacert', help='ca certificate path')
@@ -248,4 +245,7 @@ if __name__ == '__main__':
         '-H "content-type: application/json" '
         '-H "content-encoding: gzip"')
 
-    run(G.port, importlib.import_module(G.app), G.cert, G.cacert)
+    asyncio.run(Server().run(
+        G.ip, G.port,
+        importlib.import_module(G.app),
+        G.cert, G.cacert))
